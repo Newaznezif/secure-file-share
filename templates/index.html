@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure File Share</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🔐 Secure File Sharing System</h1>
+            <p class="subtitle">Military-grade encryption for your files</p>
+        </header>
+
+        <div class="hero">
+            <div class="hero-content">
+                <h2>Share Files Securely</h2>
+                <p>All files are encrypted with AES-256 before storage. Only you and your recipients can access them.
+                </p>
+                <div class="cta-buttons">
+                    <a href="{{ url_for('upload_file') }}" class="btn btn-primary">
+                        📤 Upload & Encrypt File
+                    </a>
+                    <a href="{{ url_for('download_page') }}" class="btn btn-warning">
+                        🔓 Download Secure File
+                    </a>
+                    <a href="#how-it-works" class="btn btn-secondary">
+                        ℹ️ How It Works
+                    </a>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="lock-icon">🔒</div>
+            </div>
+        </div>
+
+        <section id="features" class="features">
+            <h2>Security Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3>AES-256 Encryption</h3>
+                    <p>Military-grade encryption for all files at rest</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Secure Transfer</h3>
+                    <p>End-to-end encrypted file transfers</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🗝️</div>
+                    <h3>Key Management</h3>
+                    <p>Secure encryption key storage</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>No Data Leaks</h3>
+                    <p>Files are never stored in plaintext</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="how-it-works" class="how-it-works">
+            <h2>How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Upload File</h3>
+                    <p>Select any file up to 16MB</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Automatic Encryption</h3>
+                    <p>System encrypts file with unique AES-256 key</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Get Secure Link</h3>
+                    <p>Receive encrypted download link</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>Share & Download</h3>
+                    <p>Recipient decrypts file automatically</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="api-section">
+            <h2>API Access</h2>
+            <p>Use our REST API for programmatic file sharing:</p>
+            <div class="code-block">
+                <pre><code># Upload file via API
+curl -X POST -F "file=@yourfile.pdf" {{ url_for('api_upload', _external=True) }}</code></pre>
+            </div>
+        </section>
+
+        <footer>
+            <p>Secure File Share v1.0 | Built with Flask & PyCryptodome</p>
+            <p class="disclaimer">
+                ⚠️ This is a demonstration system. For production use, implement proper key management and HTTPS.
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Flash message handling
+        document.addEventListener('DOMContentLoaded', function () {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(msg => {
+                setTimeout(() => {
+                    msg.style.opacity = '0';
+                    setTimeout(() => msg.remove(), 300);
+                }, 5000);
+            });
+        });
+    </script>
+</body>
+
+</html>

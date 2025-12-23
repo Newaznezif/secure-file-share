@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload File - Secure File Share</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><a href="{{ url_for('index') }}">🔐 Secure File Share</a></h1>
+        </header>
+
+        <main class="upload-container">
+            <div class="upload-card">
+                <h2>📤 Upload & Encrypt File</h2>
+
+                {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                {% for message in messages %}
+                <div class="flash-message error">{{ message }}</div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                {% if download_url %}
+                <div class="success-message">
+                    <div class="success-icon">✅</div>
+                    <h3>File Encrypted Successfully!</h3>
+                    <p><strong>File:</strong> {{ filename }}</p>
+                    <p><strong>File ID:</strong> <code>{{ file_id }}</code></p>
+
+                    <div class="download-link">
+                        <label>Secure Download URL:</label>
+                        <div class="link-container">
+                            <input type="text" value="{{ download_url }}" readonly id="downloadUrl">
+                            <button onclick="copyToClipboard()" class="btn-copy">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <a href="{{ download_url }}" class="btn btn-primary" download>
+                            ⬇️ Download Now
+                        </a>
+                        <a href="{{ url_for('upload_file') }}" class="btn btn-secondary">
+                            📤 Upload Another File
+                        </a>
+                    </div>
+
+                    <div class="security-note">
+                        <p>🔒 This file is encrypted with AES-256. The download link contains the decryption key.</p>
+                        <p>⚠️ <strong>Important:</strong> Save this link - it cannot be recovered if lost!</p>
+                    </div>
+                </div>
+                {% else %}
+                <form method="POST" enctype="multipart/form-data" class="upload-form">
+                    <div class="file-upload-area" id="dropArea">
+                        <div class="upload-icon">📁</div>
+                        <h3>Drag & Drop Files Here</h3>
+                        <p>or click to browse</p>
+                        <input type="file" name="file" id="fileInput" required>
+                        <div class="file-info" id="fileInfo"></div>
+                    </div>
+
+                    <div class="file-restrictions">
+                        <p>📏 <strong>Max file size:</strong> 16MB</p>
+                        <p>✅ <strong>Allowed formats:</strong> Documents, Images, Archives</p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-upload">
+                        🔐 Encrypt & Upload
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+
+            <div class="back-link">
+                <a href="{{ url_for('index') }}">← Back to Home</a>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+
+        // Drag and drop functionality
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+            dropArea.classList.add('highlight');
+        }
+
+        function unhighlight() {
+            dropArea.classList.remove('highlight');
+        }
+
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+            updateFileInfo(files[0]);
+        }
+
+        fileInput.addEventListener('change', function () {
+            if (this.files[0]) {
+                updateFileInfo(this.files[0]);
+            }
+        });
+
+        function updateFileInfo(file) {
+            const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+            fileInfo.innerHTML = `
+                <p><strong>Selected:</strong> ${file.name}</p>
+                <p><strong>Size:</strong> ${fileSize} MB</p>
+                <p><strong>Type:</strong> ${file.type || 'Unknown'}</p>
+            `;
+        }
+
+        function copyToClipboard() {
+            const urlInput = document.getElementById('downloadUrl');
+            urlInput.select();
+            document.execCommand('copy');
+
+            const copyBtn = document.querySelector('.btn-copy');
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✅ Copied!';
+
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# pip env
+pip-log.txt
+
+# Environments
+.env
+.env.*
+
+# Byte-compiled / C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+
+# VS Code
+.vscode/
+
+# Pytest
+.pytest_cache/
+
+# Mac
+.DS_Store
+
+# Temporary files
+*.tmp
+tmp/
+
+# Keys/credentials backups (be careful)
+keys_backup/
+
+# Uploads
+uploads/
+
+# Local config
+.local_settings.py
+
+# JetBrains
+.idea/

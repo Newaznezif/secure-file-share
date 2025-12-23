@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download File - Secure File Share</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .download-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        .download-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .download-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .download-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .download-form {
+            margin: 30px 0;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-help {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .form-help code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .file-info {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 25px 0;
+            display: none;
+        }
+
+        .file-info.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .info-item {
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.1rem;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .progress-container {
+            margin: 30px 0;
+            display: none;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 5px;
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .download-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+
+        .qr-section {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 15px;
+            display: none;
+        }
+
+        .qr-section.active {
+            display: block;
+        }
+
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: monospace;
+            font-size: 0.8rem;
+            overflow: hidden;
+        }
+
+        .security-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+
+        .expiry-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+
+        .share-options {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .share-btn {
+            padding: 12px 25px;
+            border-radius: 50px;
+            border: none;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .share-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #ffcdd2;
+            display: none;
+        }
+
+        .error-message.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .success-message {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            display: none;
+        }
+
+        .success-message.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .mobile-app-section {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+            display: none;
+        }
+
+        .mobile-app-section.active {
+            display: block;
+        }
+
+        .mobile-icons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            font-size: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .download-card {
+                padding: 20px;
+            }
+
+            .download-actions {
+                flex-direction: column;
+            }
+
+            .share-options {
+                flex-direction: column;
+            }
+
+            .qr-code {
+                width: 150px;
+                height: 150px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1><a href="{{ url_for('index') }}">🔐 Secure File Share</a></h1>
+        </header>
+
+        <main class="download-container">
+            <div class="download-card">
+                <div class="download-header">
+                    <div class="download-icon">🔓</div>
+                    <h2>Download Secure File</h2>
+                    <p>Enter your secure file ID to download and decrypt your file</p>
+                </div>
+
+                {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                {% for message in messages %}
+                <div class="error-message active">{{ message }}</div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <!-- Download Form -->
+                <form class="download-form" id="downloadForm">
+                    <div class="form-group">
+                        <label class="form-label" for="fileId">Secure File ID</label>
+                        <input type="text" id="fileId" name="file_id" class="form-input"
+                            placeholder="Enter your 16-character file ID (e.g., 86bbfce6e8b177be)"
+                            pattern="[a-f0-9]{16}" title="16-character hexadecimal file ID" required>
+                        <div class="form-help">
+                            The file ID is a 16-character code you received when uploading the file.
+                            <br>Example: <code>86bbfce6e8b177be</code>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="accessKey">Access Key (Optional)</label>
+                        <input type="password" id="accessKey" name="access_key" class="form-input"
+                            placeholder="Enter access key if provided">
+                        <div class="form-help">
+                            Only needed if the file was shared with additional security.
+                        </div>
+                    </div>
+
+                    <div class="security-badge">
+                        <span>🔒</span>
+                        <span>File will be decrypted with AES-256</span>
+                    </div>
+
+                    <div class="download-actions">
+                        <button type="submit" class="btn btn-primary" id="downloadBtn">
+                            🔓 Decrypt & Download
+                        </button>
+                        <a class="btn btn-secondary" href="{{ url_for('upload_file') }}">
+                        📤 Upload New File
+                    </a>
+                    </div>
+                </form>
+
+                <!-- Progress Bar -->
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progressStatus">Initializing...</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                </div>
+
+                <!-- File Information (displayed after validation) -->
+                <div class="file-info" id="fileInfo">
+                    <h3>📄 File Information</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">File ID</div>
+                            <div class="info-value" id="infoFileId">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Status</div>
+                            <div class="info-value" id="infoStatus">Verified</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Encryption</div>
+                            <div class="info-value">AES-256-CBC</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Security Level</div>
+                            <div class="info-value" id="infoSecurity">High</div>
+                        </div>
+                    </div>
+
+                    <div class="expiry-notice" id="expiryNotice">
+                        ⏰ This file link expires in <strong id="expiryTime">24 hours</strong>. Download it before then.
+                    </div>
+                </div>
+
+                <!-- QR Code for Mobile Download -->
+                <div class="qr-section" id="qrSection">
+                    <h3>📱 Mobile Download</h3>
+                    <p>Scan this QR code with your phone to download directly</p>
+                    <div class="qr-code" id="qrCode">
+                        <!-- QR code will be generated here -->
+                        <canvas id="qrCanvas"></canvas>
+                    </div>
+                    <p class="form-help">The QR code contains the secure download link</p>
+                </div>
+
+                <!-- Share Options -->
+                <div class="share-options" id="shareOptions">
+                    <button class="share-btn" onclick="shareViaEmail()">
+                        📧 Email Link
+                    </button>
+                    <button class="share-btn" onclick="shareViaWhatsApp()">
+                        💬 WhatsApp
+                    </button>
+                    <button class="share-btn" onclick="copyDownloadLink()">
+                        📋 Copy Link
+                    </button>
+                    <button class="share-btn" onclick="shareViaSMS()">
+                        📱 SMS
+                    </button>
+                </div>
+
+                <!-- Success Message -->
+                <div class="success-message" id="successMessage">
+                    <div style="font-size: 3rem; margin-bottom: 15px;">✅</div>
+                    <h3>Download Complete!</h3>
+                    <p>Your file has been successfully decrypted and downloaded.</p>
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-secondary" onclick="window.location.reload()">
+                            🔄 Download Another File
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Mobile App Promotion -->
+                <div class="mobile-app-section" id="mobileAppSection">
+                    <h3>📲 Get Our Mobile App</h3>
+                    <p>Download files securely on your mobile device</p>
+                    <div class="mobile-icons">
+                        <span>📱</span>
+                        <span>🔐</span>
+                        <span>⚡</span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="showAppStore()"
+                        style="background: white; color: #667eea;">
+                        Available on App Store and Google Play
+                    </button>
+                </div>
+            </div>
+
+            <!-- How to Find File ID -->
+            <div class="help-section"
+                style="margin-top: 30px; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
+                <h3>❓ Where to Find Your File ID</h3>
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 15px;">
+                    <div>
+                        <h4>📧 Email</h4>
+                        <p>Check the email you received after uploading</p>
+                    </div>
+                    <div>
+                        <h4>📋 Clipboard</h4>
+                        <p>If you copied the link, the ID is at the end</p>
+                    </div>
+                    <div>
+                        <h4>💬 Message</h4>
+                        <p>Look in the chat/message where it was shared</p>
+                    </div>
+                    <div>
+                        <h4>📁 Upload History</h4>
+                        <p>If you uploaded it, check your browser history</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        // DOM Elements
+        const downloadForm = document.getElementById('downloadForm');
+        const fileIdInput = document.getElementById('fileId');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressStatus = document.getElementById('progressStatus');
+        const fileInfo = document.getElementById('fileInfo');
+        const qrSection = document.getElementById('qrSection');
+        const successMessage = document.getElementById('successMessage');
+        const shareOptions = document.getElementById('shareOptions');
+        const mobileAppSection = document.getElementById('mobileAppSection');
+        const errorMessage = document.querySelector('.error-message');
+
+        // Download URL base
+        const BASE_URL = window.location.origin;
+
+        // Handle form submission
+        downloadForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const fileId = fileIdInput.value.trim();
+            const accessKey = document.getElementById('accessKey').value;
+
+            if (!fileId.match(/^[a-f0-9]{16}$/)) {
+                showError('Invalid file ID format. Please enter a 16-character hexadecimal ID.');
+                return;
+            }
+
+            // Show progress
+            showProgress();
+
+            // Simulate file validation
+            simulateValidation(fileId);
+
+            // After validation, show download options
+            setTimeout(() => {
+                showFileInfo(fileId);
+                generateQRCode(fileId);
+                showShareOptions(fileId);
+
+                // Start download after showing info
+                startDownload(fileId, accessKey);
+            }, 1500);
+        });
+
+        function showError(message) {
+            if (errorMessage) {
+                errorMessage.textContent = message;
+                errorMessage.classList.add('active');
+                setTimeout(() => {
+                    errorMessage.classList.remove('active');
+                }, 5000);
+            } else {
+                alert(message);
+            }
+        }
+
+        function showProgress() {
+            progressContainer.classList.add('active');
+            progressFill.style.width = '0%';
+            progressPercent.textContent = '0%';
+            progressStatus.textContent = 'Validating file ID...';
+        }
+
+        function updateProgress(percent, status) {
+            progressFill.style.width = `${percent}%`;
+            progressPercent.textContent = `${percent}%`;
+            progressStatus.textContent = status;
+        }
+
+        function simulateValidation(fileId) {
+            updateProgress(25, 'Validating file ID...');
+
+            setTimeout(() => {
+                updateProgress(50, 'Checking file availability...');
+
+                setTimeout(() => {
+                    updateProgress(75, 'Initializing decryption...');
+
+                    setTimeout(() => {
+                        updateProgress(95, 'Ready to download...');
+                    }, 500);
+                }, 500);
+            }, 500);
+        }
+
+        function showFileInfo(fileId) {
+            document.getElementById('infoFileId').textContent = fileId;
+            document.getElementById('infoStatus').textContent = 'Available';
+            document.getElementById('infoSecurity').textContent = 'AES-256 Encrypted';
+
+            // Check if mobile device
+            if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                mobileAppSection.classList.add('active');
+            }
+
+            fileInfo.classList.add('active');
+        }
+
+        function generateQRCode(fileId) {
+            const downloadUrl = `${BASE_URL}/download/${fileId}`;
+            const qrCanvas = document.getElementById('qrCanvas');
+
+            QRCode.toCanvas(qrCanvas, downloadUrl, {
+                width: 150,
+                margin: 1,
+                color: {
+                    dark: '#667eea',
+                    light: '#ffffff'
+                }
+            }, function (error) {
+                if (error) {
+                    console.error('QR Code generation error:', error);
+                    qrSection.style.display = 'none';
+                } else {
+                    qrSection.classList.add('active');
+                }
+            });
+        }
+
+        function showShareOptions(fileId) {
+            shareOptions.style.display = 'flex';
+        }
+
+        async function startDownload(fileId, accessKey) {
+            const downloadUrl = `${BASE_URL}/download/${fileId}`;
+
+            try {
+                updateProgress(100, 'Downloading file...');
+
+                // Create a hidden iframe for download
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = downloadUrl;
+                document.body.appendChild(iframe);
+
+                // Wait for download to complete
+                setTimeout(() => {
+                    showSuccess();
+                }, 1000);
+
+            } catch (error) {
+                showError(`Download failed: ${error.message}`);
+                updateProgress(0, 'Download failed');
+            }
+        }
+
+        function showSuccess() {
+            progressContainer.classList.remove('active');
+            successMessage.classList.add('active');
+            fileInfo.classList.remove('active');
+            qrSection.classList.remove('active');
+            shareOptions.style.display = 'none';
+        }
+
+        // Share functions
+        function shareViaEmail() {
+            const fileId = fileIdInput.value;
+            const subject = 'Secure File Download Link';
+            const body = `Download your secure file here: ${BASE_URL}/download/${fileId}\n\nThis link is encrypted and will expire in 24 hours.`;
+            window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        }
+
+        function shareViaWhatsApp() {
+            const fileId = fileIdInput.value;
+            const text = `Download your secure file: ${BASE_URL}/download/${fileId}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        function shareViaSMS() {
+            const fileId = fileIdInput.value;
+            const text = `Secure file download: ${BASE_URL}/download/${fileId}`;
+            window.location.href = `sms:?body=${encodeURIComponent(text)}`;
+        }
+
+        function copyDownloadLink() {
+            const fileId = fileIdInput.value;
+            const link = `${BASE_URL}/download/${fileId}`;
+
+            navigator.clipboard.writeText(link).then(() => {
+                alert('Download link copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                showError('Failed to copy link to clipboard');
+            });
+        }
+
+        function showAppStore() {
+            // In a real app, this would link to actual app store pages
+            alert('Mobile app coming soon!');
+        }
+
+        // Auto-focus file ID input
+        document.addEventListener('DOMContentLoaded', () => {
+            fileIdInput.focus();
+
+            // Check if there's a file ID in the URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlFileId = urlParams.get('id');
+            if (urlFileId) {
+                fileIdInput.value = urlFileId;
+            }
+
+            // Check if we came from upload page with auto-fill
+            const hash = window.location.hash.substring(1);
+            if (hash && hash.match(/^[a-f0-9]{16}$/)) {
+                fileIdInput.value = hash;
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + Enter to submit
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                downloadForm.requestSubmit();
+            }
+
+            // Escape to clear
+            if (e.key === 'Escape') {
+                fileIdInput.value = '';
+                fileIdInput.focus();
+            }
+        });
+
+        // Auto-format file ID
+        fileIdInput.addEventListener('input', (e) => {
+            let value = e.target.value.toLowerCase().replace(/[^a-f0-9]/g, '');
+            e.target.value = value.substring(0, 16);
+
+            // Update QR code if already generated
+            if (value.length === 16) {
+                const qrCanvas = document.getElementById('qrCanvas');
+                if (qrCanvas) {
+                    generateQRCode(value);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
