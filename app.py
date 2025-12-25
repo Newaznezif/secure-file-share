@@ -31,16 +31,22 @@ app = Flask(__name__)
 
 @app.context_processor
 def inject_now():
-    """Provide a convenient `now()` helper for templates (UTC).
-    Templates can use `{{ now().year }}` to render the current year.
+    """Provide convenient helpers for templates (UTC and TTL).
+    Templates can use `{{ now().year }}` and `{{ download_ttl_hours }}`.
     """
-    return {'now': datetime.utcnow}
+    return {
+        'now': datetime.utcnow,
+        'download_ttl_hours': int(os.environ.get('DOWNLOAD_TTL_HOURS', app.config.get('DOWNLOAD_TTL_HOURS', 24)))
+    }
 
 # Load sensitive config from environment with safe local defaults
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
 app.config['KEYS_FOLDER'] = os.environ.get('KEYS_FOLDER', 'keys')
+# Download TTL (hours) - controls how long a key/download link is valid
+app.config['DOWNLOAD_TTL_HOURS'] = int(os.environ.get('DOWNLOAD_TTL_HOURS', 24))
+app.config['DOWNLOAD_TTL_SECONDS'] = app.config['DOWNLOAD_TTL_HOURS'] * 3600
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {
@@ -172,12 +178,26 @@ def save_key_mapping(file_id, key, filename):
     return file_id
 
 def get_key_mapping(file_id):
-    """Retrieve encryption key mapping and unwrap the per-file key."""
+    """Retrieve encryption key mapping and unwrap the per-file key. Enforce TTL expiry."""
     key_path = os.path.join(app.config['KEYS_FOLDER'], f'{file_id}.json')
     if not os.path.exists(key_path):
         return None
     with open(key_path, 'r') as f:
         key_data = json.load(f)
+
+    # Enforce TTL if timestamp present
+    ts = key_data.get('timestamp')
+    if ts:
+        try:
+            created = datetime.fromisoformat(ts)
+            age_seconds = (datetime.now() - created).total_seconds()
+            if age_seconds > app.config.get('DOWNLOAD_TTL_SECONDS', 24 * 3600):
+                logger.info('Key mapping %s expired (age %.0f seconds)', file_id, age_seconds)
+                return None
+        except Exception:
+            # if timestamp parsing fails, be conservative and reject
+            logger.exception('Failed to parse timestamp for %s, rejecting as expired', file_id)
+            return None
 
     enc = key_data.get('enc_key') or key_data.get('key')
     try:
