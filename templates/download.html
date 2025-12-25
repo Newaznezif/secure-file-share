@@ -5,314 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Download File - Secure File Share</title>
+    <!-- Include both CSS files -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .download-container {
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-        }
-
-        .download-card {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        }
-
-        .download-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .download-icon {
-            font-size: 4rem;
-            margin-bottom: 20px;
-        }
-
-        .download-form {
-            margin: 30px 0;
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .form-help {
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .form-help code {
-            background: #f0f0f0;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-
-        .file-info {
-            background: #f8f9ff;
-            border-radius: 10px;
-            padding: 25px;
-            margin: 25px 0;
-            display: none;
-        }
-
-        .file-info.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 15px 0;
-        }
-
-        .info-item {
-            padding: 10px;
-            background: white;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-        }
-
-        .info-label {
-            font-weight: 600;
-            color: #667eea;
-            font-size: 0.9rem;
-            margin-bottom: 5px;
-        }
-
-        .info-value {
-            font-size: 1.1rem;
-            font-weight: 500;
-            word-break: break-all;
-        }
-
-        .progress-container {
-            margin: 30px 0;
-            display: none;
-        }
-
-        .progress-container.active {
-            display: block;
-        }
-
-        .progress-bar {
-            height: 10px;
-            background: #e0e0e0;
-            border-radius: 5px;
-            overflow: hidden;
-            margin-bottom: 10px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            width: 0%;
-            transition: width 0.3s ease;
-            border-radius: 5px;
-        }
-
-        .progress-text {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9rem;
-            color: #666;
-        }
-
-        .download-actions {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-            justify-content: center;
-        }
-
-        .qr-section {
-            text-align: center;
-            margin: 30px 0;
-            padding: 20px;
-            background: #f8f9ff;
-            border-radius: 15px;
-            display: none;
-        }
-
-        .qr-section.active {
-            display: block;
-        }
-
-        .qr-code {
-            width: 200px;
-            height: 200px;
-            margin: 0 auto 20px;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: monospace;
-            font-size: 0.8rem;
-            overflow: hidden;
-        }
-
-        .security-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #e8f5e9;
-            color: #2e7d32;
-            padding: 10px 20px;
-            border-radius: 50px;
-            font-weight: 600;
-            margin: 20px 0;
-        }
-
-        .expiry-notice {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 20px 0;
-            color: #856404;
-        }
-
-        .share-options {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin: 20px 0;
-        }
-
-        .share-btn {
-            padding: 12px 25px;
-            border-radius: 50px;
-            border: none;
-            background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .share-btn:hover {
-            background: #667eea;
-            color: white;
-            transform: translateY(-2px);
-        }
-
-        .error-message {
-            background: #ffebee;
-            color: #c62828;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
-            border: 1px solid #ffcdd2;
-            display: none;
-        }
-
-        .error-message.active {
-            display: block;
-            animation: slideIn 0.3s ease;
-        }
-
-        .success-message {
-            background: #e8f5e9;
-            color: #2e7d32;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            text-align: center;
-            display: none;
-        }
-
-        .success-message.active {
-            display: block;
-            animation: slideIn 0.3s ease;
-        }
-
-        .mobile-app-section {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border-radius: 15px;
-            padding: 30px;
-            margin: 30px 0;
-            text-align: center;
-            display: none;
-        }
-
-        .mobile-app-section.active {
-            display: block;
-        }
-
-        .mobile-icons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin: 20px 0;
-            font-size: 2rem;
-        }
-
-        @media (max-width: 768px) {
-            .download-card {
-                padding: 20px;
-            }
-
-            .download-actions {
-                flex-direction: column;
-            }
-
-            .share-options {
-                flex-direction: column;
-            }
-
-            .qr-code {
-                width: 150px;
-                height: 150px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='download.css') }}">
 </head>
 
 <body>
@@ -369,8 +64,8 @@
                             🔓 Decrypt & Download
                         </button>
                         <a class="btn btn-secondary" href="{{ url_for('upload_file') }}">
-                        📤 Upload New File
-                    </a>
+                            📤 Upload New File
+                        </a>
                     </div>
                 </form>
 
@@ -425,26 +120,26 @@
 
                 <!-- Share Options -->
                 <div class="share-options" id="shareOptions">
-                    <button class="share-btn" onclick="shareViaEmail()">
+                    <button type="button" class="share-btn" onclick="shareViaEmail()">
                         📧 Email Link
                     </button>
-                    <button class="share-btn" onclick="shareViaWhatsApp()">
+                    <button type="button" class="share-btn" onclick="shareViaWhatsApp()">
                         💬 WhatsApp
                     </button>
-                    <button class="share-btn" onclick="copyDownloadLink()">
+                    <button type="button" class="share-btn" onclick="copyDownloadLink()">
                         📋 Copy Link
                     </button>
-                    <button class="share-btn" onclick="shareViaSMS()">
+                    <button type="button" class="share-btn" onclick="shareViaSMS()">
                         📱 SMS
                     </button>
                 </div>
 
                 <!-- Success Message -->
                 <div class="success-message" id="successMessage">
-                    <div style="font-size: 3rem; margin-bottom: 15px;">✅</div>
+                    <div class="success-icon">✅</div>
                     <h3>Download Complete!</h3>
                     <p>Your file has been successfully decrypted and downloaded.</p>
-                    <div style="margin-top: 20px;">
+                    <div class="success-actions">
                         <button class="btn btn-secondary" onclick="window.location.reload()">
                             🔄 Download Another File
                         </button>
@@ -460,32 +155,29 @@
                         <span>🔐</span>
                         <span>⚡</span>
                     </div>
-                    <button class="btn btn-secondary" onclick="showAppStore()"
-                        style="background: white; color: #667eea;">
+                    <button type="button" class="btn btn-appstore" onclick="showAppStore()">
                         Available on App Store and Google Play
                     </button>
                 </div>
             </div>
 
             <!-- How to Find File ID -->
-            <div class="help-section"
-                style="margin-top: 30px; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
+            <div class="help-section">
                 <h3>❓ Where to Find Your File ID</h3>
-                <div
-                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 15px;">
-                    <div>
+                <div class="help-grid">
+                    <div class="help-item">
                         <h4>📧 Email</h4>
                         <p>Check the email you received after uploading</p>
                     </div>
-                    <div>
+                    <div class="help-item">
                         <h4>📋 Clipboard</h4>
                         <p>If you copied the link, the ID is at the end</p>
                     </div>
-                    <div>
+                    <div class="help-item">
                         <h4>💬 Message</h4>
                         <p>Look in the chat/message where it was shared</p>
                     </div>
-                    <div>
+                    <div class="help-item">
                         <h4>📁 Upload History</h4>
                         <p>If you uploaded it, check your browser history</p>
                     </div>
@@ -601,6 +293,9 @@
             const downloadUrl = `${BASE_URL}/download/${fileId}`;
             const qrCanvas = document.getElementById('qrCanvas');
 
+            // Clear previous QR code
+            qrCanvas.getContext('2d').clearRect(0, 0, qrCanvas.width, qrCanvas.height);
+
             QRCode.toCanvas(qrCanvas, downloadUrl, {
                 width: 150,
                 margin: 1,
@@ -636,6 +331,8 @@
 
                 // Wait for download to complete
                 setTimeout(() => {
+                    // Remove iframe after download
+                    iframe.remove();
                     showSuccess();
                 }, 1000);
 
@@ -678,7 +375,16 @@
             const link = `${BASE_URL}/download/${fileId}`;
 
             navigator.clipboard.writeText(link).then(() => {
-                alert('Download link copied to clipboard!');
+                // Show feedback
+                const copyBtn = document.querySelector('.share-btn:nth-child(3)');
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '✅ Copied!';
+                copyBtn.disabled = true;
+
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalText;
+                    copyBtn.disabled = false;
+                }, 2000);
             }).catch(err => {
                 console.error('Failed to copy: ', err);
                 showError('Failed to copy link to clipboard');

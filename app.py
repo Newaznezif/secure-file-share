@@ -29,6 +29,13 @@ else:
 
 app = Flask(__name__)
 
+@app.context_processor
+def inject_now():
+    """Provide a convenient `now()` helper for templates (UTC).
+    Templates can use `{{ now().year }}` to render the current year.
+    """
+    return {'now': datetime.utcnow}
+
 # Load sensitive config from environment with safe local defaults
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'uploads')
