@@ -3,7 +3,7 @@
 A web-based secure file sharing system with military-grade AES-256 encryption.
 
 ## Features
-- End-to-end file encryption with AES-256-CBC
+- End-to-end file encryption with AES-256-GCM (authenticated, AEAD)
 - Key wrapping at rest using a master key (optional, via `MASTER_KEY` env var)
 - User-friendly web interface
 - REST API for programmatic access
@@ -21,7 +21,7 @@ A web-based secure file sharing system with military-grade AES-256 encryption.
 - Keys are wrapped at rest using AES-GCM protected by the `MASTER_KEY` environment variable when provided. The app also supports **AWS KMS** to wrap keys — set `AWS_KMS_KEY_ID` and the app will use KMS Encrypt/Decrypt.
 - In production, prefer a KMS (AWS KMS or Azure Key Vault) instead of static passphrases; use IAM roles/managed identities and audit logs.
 - The app avoids writing decrypted files to disk by serving decrypted data from memory. This reduces the risk of plaintext leakage but does not replace secure infrastructure.
-- Rotate keys regularly and enforce short TTLs for download links.
+- Rotate keys regularly and enforce short TTLs for download links (configurable via `DOWNLOAD_TTL_HOURS`, default: 24).
 
 ---
 
