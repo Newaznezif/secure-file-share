@@ -67,14 +67,30 @@ def generate_key():
     return get_random_bytes(32)  # 256-bit key
 
 def encrypt_file(file_data, key):
-    """Encrypt file data using AES-256-CBC"""
-    cipher = AES.new(key, AES.MODE_CBC)
-    ct_bytes = cipher.encrypt(pad(file_data, AES.block_size))
-    iv = cipher.iv
-    return iv + ct_bytes
+    """Encrypt file data using AES-GCM (AEAD).
+
+    Format: b'GCM1' + nonce_len(1 byte) + nonce + ciphertext + tag(16 bytes)
+    This is backwards-compatible with legacy AES-CBC files (no prefix).
+    """
+    cipher = AES.new(key, AES.MODE_GCM)
+    ct, tag = cipher.encrypt_and_digest(file_data)
+    nonce = cipher.nonce
+    nlen = len(nonce)
+    return b'GCM1' + bytes([nlen]) + nonce + ct + tag
+
 
 def decrypt_file(encrypted_data, key):
-    """Decrypt file data using AES-256-CBC"""
+    """Decrypt file data supporting AES-GCM (new) and AES-CBC (legacy)."""
+    # Detect GCM format by header
+    if encrypted_data.startswith(b'GCM1'):
+        nlen = encrypted_data[4]
+        nonce = encrypted_data[5:5 + nlen]
+        tag = encrypted_data[-16:]
+        ct = encrypted_data[5 + nlen:-16]
+        cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+        return cipher.decrypt_and_verify(ct, tag)
+
+    # Legacy: AES-CBC (IV + ciphertext)
     iv = encrypted_data[:16]
     ct = encrypted_data[16:]
     cipher = AES.new(key, AES.MODE_CBC, iv)
