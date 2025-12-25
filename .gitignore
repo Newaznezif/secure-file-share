@@ -39,6 +39,8 @@ tmp/
 
 # Keys/credentials backups (be careful)
 keys_backup/
+# Don't store sensitive key files in the repo
+keys/
 
 # Uploads
 uploads/
