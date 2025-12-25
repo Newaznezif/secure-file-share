@@ -15,6 +15,10 @@ import boto3
 from botocore.stub import Stubber
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
+from functools import wraps
+from flask import jsonify
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Basic logging
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +32,52 @@ else:
     logger.info('MASTER_KEY not set; using fallback (not for production)')
 
 app = Flask(__name__)
+
+# --- API key configuration ---
+# API keys may be provided via env var API_KEYS (comma-separated) or a single API_KEY
+
+def _load_api_keys():
+    keys_raw = os.environ.get('API_KEYS') or os.environ.get('API_KEY')
+    if not keys_raw:
+        return set()
+    return {k.strip() for k in keys_raw.split(',') if k.strip()}
+
+
+def _is_valid_api_key(key: str) -> bool:
+    return key in _load_api_keys()
+
+
+def _get_auth_header_key():
+    # Look in X-API-Key, query param, or Authorization: Bearer <token>
+    from flask import request
+    key = request.headers.get('X-API-Key')
+    if key:
+        return key
+    key = request.args.get('api_key')
+    if key:
+        return key
+    auth = request.headers.get('Authorization')
+    if auth and auth.startswith('Bearer '):
+        return auth.split(' ', 1)[1].strip()
+    return None
+
+
+def require_api_key(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        key = _get_auth_header_key()
+        if not key or not _is_valid_api_key(key):
+            return jsonify({'error': 'Unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+# --- Rate limiter (per-key if provided, otherwise per-IP) ---
+def _limiter_key():
+    from flask import request
+    return request.headers.get('X-API-Key') or get_remote_address()
+
+limiter = Limiter(key_func=_limiter_key, app=app)
 
 @app.context_processor
 def inject_now():
@@ -339,8 +389,10 @@ def download_file(file_id):
         return redirect(url_for('index'))
 
 @app.route('/api/files', methods=['POST'])
+@require_api_key
+@limiter.limit('10 per minute')
 def api_upload():
-    """API endpoint for file upload"""
+    """API endpoint for file upload (requires API key and rate limited)"""
     if 'file' not in request.files:
         return {'error': 'No file provided'}, 400
     
