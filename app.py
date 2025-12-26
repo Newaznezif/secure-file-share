@@ -19,6 +19,10 @@ from functools import wraps
 from flask import jsonify
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import secrets
+import hashlib
+import uuid
+
 
 # Basic logging
 logging.basicConfig(level=logging.INFO)
@@ -35,16 +39,110 @@ app = Flask(__name__)
 
 # --- API key configuration ---
 # API keys may be provided via env var API_KEYS (comma-separated) or a single API_KEY
+# Keys can also be persisted to a JSON file (default: data/api_keys.json)
 
-def _load_api_keys():
+PERSIST_KEYS_FILE = os.environ.get('API_KEYS_FILE', 'data/api_keys.json')
+ADMIN_KEYS_RAW = os.environ.get('API_ADMIN_KEYS')
+
+# Lightweight OpenAPI spec (served at /openapi.json) and ReDoc UI at /docs
+OPENAPI_SPEC = {
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Secure File Share API",
+        "version": "1.0.0",
+        "description": "API for uploading and managing secure files"
+    },
+    "paths": {
+        "/api/files": {
+            "post": {
+                "summary": "Upload file",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {"file": {"type": "string", "format": "binary"}}
+                            }
+                        }
+                    }
+                },
+                "responses": {"200": {"description": "File uploaded"}}
+            }
+        },
+        "/api/keys": {
+            "post": {"summary": "Create API key (admin)"},
+            "get": {"summary": "List API keys (admin)"}
+        },
+        "/api/keys/{key_id}": {"delete": {"summary": "Revoke API key (admin)", "parameters": [{"name": "key_id", "in": "path", "required": True}]}}
+    }
+}
+
+@app.route('/openapi.json')
+def openapi_json():
+    return jsonify(OPENAPI_SPEC)
+
+
+@app.route('/docs')
+def api_docs():
+    # Serve a minimal ReDoc-based API docs page
+    return """<!doctype html>
+<html>
+  <head>
+    <title>API Docs - Secure File Share</title>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <redoc spec-url='/openapi.json'></redoc>
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"> </script>
+  </body>
+</html>"""
+
+
+def ensure_data_dir():
+    d = os.path.dirname(PERSIST_KEYS_FILE)
+    if d and not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
+
+
+def _load_api_keys_from_env():
     keys_raw = os.environ.get('API_KEYS') or os.environ.get('API_KEY')
     if not keys_raw:
         return set()
     return {k.strip() for k in keys_raw.split(',') if k.strip()}
 
 
+def _hash_key(key: str) -> str:
+    return hashlib.sha256(key.encode('utf-8')).hexdigest()
+
+
+def _load_persisted_keys():
+    ensure_data_dir()
+    fp = PERSIST_KEYS_FILE
+    if not os.path.exists(fp):
+        return []
+    try:
+        with open(fp, 'r') as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def _save_persisted_keys(data):
+    ensure_data_dir()
+    with open(PERSIST_KEYS_FILE, 'w') as f:
+        json.dump(data, f, indent=2)
+
+
 def _is_valid_api_key(key: str) -> bool:
-    return key in _load_api_keys()
+    # check env keys
+    if key in _load_api_keys_from_env():
+        return True
+    # check persisted hashed keys
+    hashed = _hash_key(key)
+    for rec in _load_persisted_keys():
+        if not rec.get('revoked') and rec.get('hash') == hashed:
+            return True
+    return False
 
 
 def _get_auth_header_key():
@@ -72,12 +170,30 @@ def require_api_key(f):
     return decorated
 
 
+def require_admin_key(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        key = _get_auth_header_key()
+        # Admin keys read from environment at request time
+        admins_raw = os.environ.get('API_ADMIN_KEYS')
+        admins = {k.strip() for k in (admins_raw or '').split(',') if k.strip()}
+        if key and key in admins:
+            return f(*args, **kwargs)
+        return jsonify({'error': 'Admin privileges required'}), 403
+    return decorated
+
+
 # --- Rate limiter (per-key if provided, otherwise per-IP) ---
 def _limiter_key():
     from flask import request
     return request.headers.get('X-API-Key') or get_remote_address()
 
-limiter = Limiter(key_func=_limiter_key, app=app)
+# Configure limiter storage using REDIS_URL when available
+redis_url = os.environ.get('REDIS_URL')
+if redis_url:
+    limiter = Limiter(key_func=_limiter_key, app=app, storage_uri=redis_url)
+else:
+    limiter = Limiter(key_func=_limiter_key, app=app)
 
 @app.context_processor
 def inject_now():
@@ -392,7 +508,31 @@ def download_file(file_id):
 @require_api_key
 @limiter.limit('10 per minute')
 def api_upload():
-    """API endpoint for file upload (requires API key and rate limited)"""
+    """API endpoint for file upload (requires API key and rate limited)
+    ---
+    tags:
+      - files
+    consumes:
+      - multipart/form-data
+    parameters:
+      - name: file
+        in: formData
+        type: file
+        required: true
+        description: The file to upload
+    responses:
+      200:
+        description: File uploaded
+        schema:
+          type: object
+          properties:
+            file_id:
+              type: string
+            download_url:
+              type: string
+            filename:
+              type: string
+    """
     if 'file' not in request.files:
         return {'error': 'No file provided'}, 400
     
@@ -428,6 +568,84 @@ def api_upload():
         'filename': filename,
         'message': 'File uploaded and encrypted successfully'
     }
+
+
+# --- API Key management endpoints ---
+@app.route('/api/keys', methods=['POST'])
+@require_admin_key
+def create_api_key():
+    """Create a new API key (admin-only)
+    ---
+    tags:
+      - keys
+    responses:
+      200:
+        description: Created key
+        schema:
+          type: object
+          properties:
+            id:
+              type: string
+            key:
+              type: string
+    """
+    # generate key
+    new_key = secrets.token_urlsafe(32)
+    hashed = _hash_key(new_key)
+    rec = {
+        'id': uuid.uuid4().hex,
+        'hash': hashed,
+        'created_at': datetime.now().isoformat(),
+        'revoked': False
+    }
+    data = _load_persisted_keys()
+    data.append(rec)
+    _save_persisted_keys(data)
+    # return plain key only once
+    return {'id': rec['id'], 'key': new_key}
+
+
+@app.route('/api/keys', methods=['GET'])
+@require_admin_key
+def list_api_keys():
+    """List API keys (admin-only)
+    ---
+    tags:
+      - keys
+    responses:
+      200:
+        description: List of keys (hashed)
+    """
+    data = _load_persisted_keys()
+    return {'keys': [{'id': r['id'], 'created_at': r.get('created_at'), 'revoked': r.get('revoked', False)} for r in data]}
+
+
+@app.route('/api/keys/<key_id>', methods=['DELETE'])
+@require_admin_key
+def revoke_api_key(key_id):
+    """Revoke an API key (admin-only)
+    ---
+    tags:
+      - keys
+    parameters:
+      - in: path
+        name: key_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Revoked
+    """
+    data = _load_persisted_keys()
+    found = False
+    for r in data:
+        if r['id'] == key_id:
+            r['revoked'] = True
+            found = True
+    _save_persisted_keys(data)
+    if not found:
+        return {'error': 'Not found'}, 404
+    return {'status': 'revoked'}
 
 if __name__ == '__main__':
     app.run(debug=True, ssl_context='adhoc')  # Use adhoc SSL for testing

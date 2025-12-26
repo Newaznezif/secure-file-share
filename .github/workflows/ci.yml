@@ -18,6 +18,11 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Start Redis service
+        uses: addnab/docker-run-action@v3
+        with:
+          image: redis:7.0
+          options: --name redis -p 6379:6379 -d
       - name: Cache pip
         uses: actions/cache@v4
         with:
@@ -27,7 +32,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Run tests
+      - name: Run tests (with REDIS)
+        env:
+          REDIS_URL: redis://localhost:6379
         run: pytest -q
       - name: Upload coverage (optional)
         if: always()
