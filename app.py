@@ -214,6 +214,10 @@ app.config['KEYS_FOLDER'] = os.environ.get('KEYS_FOLDER', 'keys')
 app.config['DOWNLOAD_TTL_HOURS'] = int(os.environ.get('DOWNLOAD_TTL_HOURS', 24))
 app.config['DOWNLOAD_TTL_SECONDS'] = app.config['DOWNLOAD_TTL_HOURS'] * 3600
 
+# Token TTL for signed download tokens (seconds)
+app.config['DOWNLOAD_TOKEN_TTL_SECONDS'] = int(os.environ.get('DOWNLOAD_TOKEN_TTL_SECONDS', 300))  # default 5 minutes
+
+
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {
     'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 
@@ -394,6 +398,128 @@ def get_key_mapping(file_id):
 
     key_data['key'] = key_bytes
     return key_data
+
+
+# --- Signed download tokens helpers & endpoints ---
+import hmac
+import json as _json
+from base64 import urlsafe_b64encode, urlsafe_b64decode
+
+
+def _b64u(data: bytes) -> str:
+    return urlsafe_b64encode(data).rstrip(b"=").decode('ascii')
+
+
+def _unb64u(s: str) -> bytes:
+    # add padding back
+    padding = '=' * (-len(s) % 4)
+    return urlsafe_b64decode(s + padding)
+
+
+def create_download_token(file_id: str, ttl: int | None = None) -> str:
+    """Create a signed token for file_id valid for ttl seconds."""
+    ttl = ttl if ttl is not None else app.config['DOWNLOAD_TOKEN_TTL_SECONDS']
+    payload = {
+        'file_id': file_id,
+        'exp': int((datetime.now()).timestamp()) + int(ttl)
+    }
+    header = {'alg': 'HS256', 'typ': 'JWT'}
+    header_b = _b64u(_json.dumps(header).encode('utf-8'))
+    payload_b = _b64u(_json.dumps(payload).encode('utf-8'))
+    msg = f"{header_b}.{payload_b}".encode('utf-8')
+    sig = hmac.new(app.config['SECRET_KEY'].encode('utf-8'), msg, digestmod='sha256').digest()
+    sig_b = _b64u(sig)
+    return f"{header_b}.{payload_b}.{sig_b}"
+
+
+def verify_download_token(token: str) -> dict:
+    """Verify token and return payload dict (raises ValueError on invalid/expired)."""
+    try:
+        header_b, payload_b, sig_b = token.split('.')
+    except Exception:
+        raise ValueError('Invalid token format')
+    msg = f"{header_b}.{payload_b}".encode('utf-8')
+    expected_sig = hmac.new(app.config['SECRET_KEY'].encode('utf-8'), msg, digestmod='sha256').digest()
+    try:
+        sig = _unb64u(sig_b)
+    except Exception:
+        raise ValueError('Invalid signature encoding')
+    if not hmac.compare_digest(expected_sig, sig):
+        raise ValueError('Invalid signature')
+    try:
+        payload = _json.loads(_unb64u(payload_b))
+    except Exception:
+        raise ValueError('Invalid payload')
+    if 'exp' not in payload or 'file_id' not in payload:
+        raise ValueError('Invalid payload fields')
+    if int(datetime.now().timestamp()) > int(payload['exp']):
+        raise ValueError('Token expired')
+    return payload
+
+
+@app.route('/api/files/<file_id>/token', methods=['POST'])
+@require_api_key
+@limiter.limit('30 per hour')
+def create_token_endpoint(file_id):
+    """Create a signed temporary download token for a file (requires API key).
+    ---
+    tags:
+      - files
+    parameters:
+      - in: path
+        name: file_id
+        required: true
+    responses:
+      200:
+        description: Token created
+    """
+    # ensure file exists and key mapping can be retrieved
+    key_data = get_key_mapping(file_id)
+    if not key_data:
+        return {'error': 'File not found or expired'}, 404
+    token = create_download_token(file_id)
+    return {'token': token, 'expires_in': app.config['DOWNLOAD_TOKEN_TTL_SECONDS']}
+
+
+@app.route('/download/token/<token>')
+def download_with_token(token):
+    """Validate token and stream the decrypted file (no API key required)."""
+    try:
+        payload = verify_download_token(token)
+    except ValueError as e:
+        flash(str(e))
+        return redirect(url_for('index'))
+
+    file_id = payload['file_id']
+    # reuse download logic but do not require key via query
+    key_data = get_key_mapping(file_id)
+    if not key_data:
+        flash('File not found or link expired')
+        return redirect(url_for('index'))
+
+    encrypted_filename = f"{file_id}.enc"
+    encrypted_path = os.path.join(app.config['UPLOAD_FOLDER'], encrypted_filename)
+
+    if not os.path.exists(encrypted_path):
+        flash('File not found')
+        return redirect(url_for('index'))
+
+    with open(encrypted_path, 'rb') as f:
+        encrypted_data = f.read()
+
+    decrypted_data = decrypt_file(encrypted_data, key_data['key'])
+
+    temp_filename = key_data['original_filename']
+    fileobj = io.BytesIO(decrypted_data)
+    mimetype, _ = mimetypes.guess_type(temp_filename)
+    mimetype = mimetype or 'application/octet-stream'
+    fileobj.seek(0)
+    return send_file(
+        fileobj,
+        as_attachment=True,
+        download_name=temp_filename,
+        mimetype=mimetype
+    )
 
 @app.route('/')
 def index():
