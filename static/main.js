@@ -268,6 +268,8 @@
         initMobileNav();
         initSmoothScroll();
         initQuickDownload();
+        // Futuristic animated accent
+        initFuturisticAnimation();
 
         // Add theme toggle event listener
         const themeToggle = document.querySelector('#themeToggle');
@@ -346,6 +348,87 @@
                 }
             `;
             document.head.appendChild(style);
+        }
+
+        // Futuristic animated background (subtle particles)
+        function initFuturisticAnimation() {
+            // Respect users who prefer reduced motion
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.className = 'futuristic-canvas';
+            canvas.style.position = 'fixed';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvas.style.pointerEvents = 'none';
+            canvas.style.zIndex = '0';
+            canvas.style.opacity = '0.08';
+            document.body.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+            let w = canvas.width = window.innerWidth;
+            let h = canvas.height = window.innerHeight;
+
+            // Determine particle count based on viewport size
+            const particleCount = Math.max(20, Math.floor((w * h) / 150000));
+            const particles = new Array(particleCount).fill(0).map(() => ({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                vx: (Math.random() - 0.5) * 0.25,
+                vy: (Math.random() - 0.5) * 0.25,
+                r: Math.random() * 1.4 + 0.6,
+                hue: Math.random() * 360
+            }));
+
+            function draw() {
+                ctx.clearRect(0, 0, w, h);
+                for (const p of particles) {
+                    p.x += p.vx; p.y += p.vy;
+                    if (p.x < -20) p.x = w + 20;
+                    if (p.x > w + 20) p.x = -20;
+                    if (p.y < -20) p.y = h + 20;
+                    if (p.y > h + 20) p.y = -20;
+
+                    const g = ctx.createRadialGradient(p.x, p.y, p.r * 0.1, p.x, p.y, p.r * 6);
+                    g.addColorStop(0, `hsla(${p.hue},90%,60%,0.9)`);
+                    g.addColorStop(0.4, `hsla(${(p.hue + 40) % 360},80%,55%,0.45)`);
+                    g.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = g;
+                    ctx.fillRect(p.x - p.r * 6, p.y - p.r * 6, p.r * 12, p.r * 12);
+                }
+
+                // Connect nearby particles
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const a = particles[i], b = particles[j];
+                        const dx = a.x - b.x, dy = a.y - b.y;
+                        const dist2 = dx * dx + dy * dy;
+                        if (dist2 < 2500) {
+                            const alpha = 0.18 * (1 - dist2 / 2500);
+                            ctx.strokeStyle = `rgba(120,200,255,${alpha})`;
+                            ctx.lineWidth = 0.6;
+                            ctx.beginPath();
+                            ctx.moveTo(a.x, a.y);
+                            ctx.lineTo(b.x, b.y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                raf = requestAnimationFrame(draw);
+            }
+
+            let raf = requestAnimationFrame(draw);
+
+            function resize() {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            }
+
+            window.addEventListener('resize', resize);
+            window.addEventListener('beforeunload', () => cancelAnimationFrame(raf));
         }
 
         // Dispatch loaded event
