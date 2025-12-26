@@ -68,3 +68,23 @@ Run the unit tests with pytest:
 ```bash
 pytest -q
 ```
+
+### Admin CLI (manage API keys)
+A simple CLI is provided to create, list, and revoke API keys locally. The plaintext API key is shown only at creation time; **save it securely**.
+
+Examples:
+
+```bash
+# Create a new API key and print the plaintext secret
+python -m scripts.manage_api_keys create --show
+
+# List persisted API keys
+python -m scripts.manage_api_keys list
+
+# Revoke a key by id
+python -m scripts.manage_api_keys revoke <key_id>
+```
+
+Notes:
+- The CLI persists key metadata in `data/api_keys.json` by default.
+- Created keys must be stored by the admin; the app only stores hashed keys for verification.
