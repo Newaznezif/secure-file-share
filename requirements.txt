@@ -1,6 +1,6 @@
 Flask==2.3.3
 Werkzeug==2.3.7
-pycryptodome==3.18.0
+pycryptodome==3.19.1
 pytest==7.3.2
 python-dotenv==1.1.1
 boto3==1.28.69
