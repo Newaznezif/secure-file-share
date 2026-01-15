@@ -1,8 +1,9 @@
 Flask==2.3.3
-Werkzeug==2.3.7
+Werkzeug==3.1.5
 pycryptodome==3.19.1
 pytest==7.3.2
 python-dotenv==1.1.1
 boto3==1.28.69
 botocore==1.31.69
 Flask-Limiter==2.9.0
+urllib3>=2.6.3 # not directly required, pinned by Snyk to avoid a vulnerability
